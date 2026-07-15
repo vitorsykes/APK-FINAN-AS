@@ -32,15 +32,98 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   // Core Data States
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
-  const [accounts, setAccounts] = useState<BankAccount[]>(initialAccounts);
-  const [cards, setCards] = useState<CreditCard[]>(initialCards);
-  const [goals, setGoals] = useState<FinancialGoal[]>(initialGoals);
-  const [budgets, setBudgets] = useState<CategoryBudget[]>(initialBudgets);
-  const [rules, setRules] = useState<AutoRule[]>(initialRules);
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    const saved = localStorage.getItem('lumina_session');
+    if (saved === 'local-guest') {
+      const dataStr = localStorage.getItem('lumina_local_data');
+      if (dataStr) {
+        try {
+          const d = JSON.parse(dataStr);
+          if (d.transactions) return d.transactions;
+        } catch (_) {}
+      }
+    }
+    return [];
+  });
+
+  const [accounts, setAccounts] = useState<BankAccount[]>(() => {
+    const saved = localStorage.getItem('lumina_session');
+    if (saved === 'local-guest') {
+      const dataStr = localStorage.getItem('lumina_local_data');
+      if (dataStr) {
+        try {
+          const d = JSON.parse(dataStr);
+          if (d.accounts) return d.accounts;
+        } catch (_) {}
+      }
+    }
+    return [];
+  });
+
+  const [cards, setCards] = useState<CreditCard[]>(() => {
+    const saved = localStorage.getItem('lumina_session');
+    if (saved === 'local-guest') {
+      const dataStr = localStorage.getItem('lumina_local_data');
+      if (dataStr) {
+        try {
+          const d = JSON.parse(dataStr);
+          if (d.cards) return d.cards;
+        } catch (_) {}
+      }
+    }
+    return [];
+  });
+
+  const [goals, setGoals] = useState<FinancialGoal[]>(() => {
+    const saved = localStorage.getItem('lumina_session');
+    if (saved === 'local-guest') {
+      const dataStr = localStorage.getItem('lumina_local_data');
+      if (dataStr) {
+        try {
+          const d = JSON.parse(dataStr);
+          if (d.goals) return d.goals;
+        } catch (_) {}
+      }
+    }
+    return [];
+  });
+
+  const [budgets, setBudgets] = useState<CategoryBudget[]>(() => {
+    const saved = localStorage.getItem('lumina_session');
+    if (saved === 'local-guest') {
+      const dataStr = localStorage.getItem('lumina_local_data');
+      if (dataStr) {
+        try {
+          const d = JSON.parse(dataStr);
+          if (d.budgets) return d.budgets;
+        } catch (_) {}
+      }
+    }
+    return [];
+  });
+
+  const [rules, setRules] = useState<AutoRule[]>(() => {
+    const saved = localStorage.getItem('lumina_session');
+    if (saved === 'local-guest') {
+      const dataStr = localStorage.getItem('lumina_local_data');
+      if (dataStr) {
+        try {
+          const d = JSON.parse(dataStr);
+          if (d.rules) return d.rules;
+        } catch (_) {}
+      }
+    }
+    return [];
+  });
 
   // Firebase auth & data sync states
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    const saved = localStorage.getItem('lumina_session');
+    if (saved === 'local-guest') {
+      return { email: 'convidado@lumina.com', uid: 'local-guest', isLocal: true };
+    }
+    return null;
+  });
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   // App initialization & theme handler
@@ -54,29 +137,69 @@ export default function App() {
 
   // Monitor Authentication State & load cloud data
   useEffect(() => {
+    // If we have a saved local session, restore it and skip Firebase initially
+    const saved = localStorage.getItem('lumina_session');
+    if (saved === 'local-guest') {
+      setCurrentUser({ email: 'convidado@lumina.com', uid: 'local-guest', isLocal: true });
+      setScreen('app');
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      // Avoid overwriting a local-guest session if one is active
+      const currentSaved = localStorage.getItem('lumina_session');
+      if (currentSaved === 'local-guest') {
+        return;
+      }
+
       if (user) {
         setCurrentUser(user);
         setIsLoadingData(true);
         try {
           const cloudData = await fetchUserData(user.uid);
           if (cloudData) {
-            if (cloudData.transactions) setTransactions(cloudData.transactions);
-            if (cloudData.accounts) setAccounts(cloudData.accounts);
-            if (cloudData.cards) setCards(cloudData.cards);
-            if (cloudData.goals) setGoals(cloudData.goals);
-            if (cloudData.budgets) setBudgets(cloudData.budgets);
-            if (cloudData.rules) setRules(cloudData.rules);
+            setTransactions(cloudData.transactions || []);
+            setAccounts(cloudData.accounts || []);
+            setCards(cloudData.cards || []);
+            setGoals(cloudData.goals || []);
+            setBudgets(cloudData.budgets || []);
+            setRules(cloudData.rules || []);
           } else {
-            // New user, seed current states to Firestore
-            await saveUserData(user.uid, {
-              accounts: initialAccounts,
-              transactions: initialTransactions,
-              cards: initialCards,
-              goals: initialGoals,
-              budgets: initialBudgets,
-              rules: initialRules
-            });
+            // New user registration
+            if (user.email === 'demo@lumina.com') {
+              // Seed demo account with initial sample data so it's a rich sandbox
+              await saveUserData(user.uid, {
+                accounts: initialAccounts,
+                transactions: initialTransactions,
+                cards: initialCards,
+                goals: initialGoals,
+                budgets: initialBudgets,
+                rules: initialRules
+              });
+              setTransactions(initialTransactions);
+              setAccounts(initialAccounts);
+              setCards(initialCards);
+              setGoals(initialGoals);
+              setBudgets(initialBudgets);
+              setRules(initialRules);
+            } else {
+              // For any other registered email, keep it entirely empty/zeroed out
+              const emptyData = {
+                accounts: [],
+                transactions: [],
+                cards: [],
+                goals: [],
+                budgets: [],
+                rules: []
+              };
+              await saveUserData(user.uid, emptyData);
+              setTransactions([]);
+              setAccounts([]);
+              setCards([]);
+              setGoals([]);
+              setBudgets([]);
+              setRules([]);
+            }
           }
         } catch (err) {
           console.error('Erro ao inicializar dados com o Firebase:', err);
@@ -95,27 +218,39 @@ export default function App() {
     return () => unsubscribe();
   }, [screen]);
 
-  // Save changes to Firestore (Debounced to optimize DB writes)
+  // Save changes to Firestore or LocalStorage (Debounced to optimize writes)
   useEffect(() => {
-    if (currentUser && !isLoadingData) {
-      const timer = setTimeout(() => {
-        saveUserData(currentUser.uid, {
-          accounts,
-          transactions,
-          cards,
-          goals,
-          budgets,
-          rules
-        });
-      }, 1000); // 1-second debounce
-
-      return () => clearTimeout(timer);
+    if (!isLoadingData) {
+      if (currentUser?.isLocal) {
+        const timer = setTimeout(() => {
+          localStorage.setItem('lumina_local_data', JSON.stringify({
+            accounts,
+            transactions,
+            cards,
+            goals,
+            budgets,
+            rules
+          }));
+        }, 1000); // 1-second debounce
+        return () => clearTimeout(timer);
+      } else if (currentUser) {
+        const timer = setTimeout(() => {
+          saveUserData(currentUser.uid, {
+            accounts,
+            transactions,
+            cards,
+            goals,
+            budgets,
+            rules
+          });
+        }, 1000); // 1-second debounce
+        return () => clearTimeout(timer);
+      }
     }
   }, [accounts, transactions, cards, goals, budgets, rules, currentUser, isLoadingData]);
 
-  // Reset all information helper
-  const handleResetAllData = async () => {
-    // Reset to initial seed state
+  // Load sample/demo data helper
+  const handleLoadDemoData = async () => {
     setTransactions(initialTransactions);
     setAccounts(initialAccounts);
     setCards(initialCards);
@@ -123,8 +258,16 @@ export default function App() {
     setBudgets(initialBudgets);
     setRules(initialRules);
 
-    // If user logged in, immediately update Firestore to overwrite old data
-    if (currentUser) {
+    if (currentUser?.isLocal) {
+      localStorage.setItem('lumina_local_data', JSON.stringify({
+        accounts: initialAccounts,
+        transactions: initialTransactions,
+        cards: initialCards,
+        goals: initialGoals,
+        budgets: initialBudgets,
+        rules: initialRules
+      }));
+    } else if (currentUser) {
       await saveUserData(currentUser.uid, {
         accounts: initialAccounts,
         transactions: initialTransactions,
@@ -132,6 +275,38 @@ export default function App() {
         goals: initialGoals,
         budgets: initialBudgets,
         rules: initialRules
+      });
+    }
+  };
+
+  // Reset all information helper
+  const handleResetAllData = async () => {
+    // Reset to completely empty, clean state
+    setTransactions([]);
+    setAccounts([]);
+    setCards([]);
+    setGoals([]);
+    setBudgets([]);
+    setRules([]);
+
+    if (currentUser?.isLocal) {
+      localStorage.setItem('lumina_local_data', JSON.stringify({
+        accounts: [],
+        transactions: [],
+        cards: [],
+        goals: [],
+        budgets: [],
+        rules: []
+      }));
+    } else if (currentUser) {
+      // If user logged in, immediately update Firestore to overwrite old data with empty state
+      await saveUserData(currentUser.uid, {
+        accounts: [],
+        transactions: [],
+        cards: [],
+        goals: [],
+        budgets: [],
+        rules: []
       });
     }
   };
@@ -549,7 +724,11 @@ export default function App() {
           {/* Simulated Sign Out */}
           <button 
             onClick={async () => {
-              await signOut(auth);
+              localStorage.removeItem('lumina_session');
+              try {
+                await signOut(auth);
+              } catch (_) {}
+              setCurrentUser(null);
               setScreen('login');
             }}
             className="w-full h-11 px-4 rounded-xl flex items-center gap-3 text-xs font-semibold text-rose-500 hover:bg-rose-50/50 dark:hover:bg-rose-950/20 cursor-pointer"
@@ -634,7 +813,10 @@ export default function App() {
                 transactions={transactions} 
                 accounts={accounts}
                 onUpdateAccounts={setAccounts}
+                cards={cards}
+                onUpdateCards={setCards}
                 onResetAllData={handleResetAllData}
+                onLoadDemoData={handleLoadDemoData}
               />
             )}
           </div>

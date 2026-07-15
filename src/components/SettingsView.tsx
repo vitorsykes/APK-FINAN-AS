@@ -1,19 +1,31 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   Download, CloudLightning, ShieldCheck, Fingerprint, Lock, RefreshCw, HardDrive, Check, Info,
-  Briefcase, Users, ArrowRightLeft, Percent, DollarSign, Sparkles, PiggyBank, Landmark, Trash2, AlertCircle
+  Briefcase, Users, ArrowRightLeft, Percent, DollarSign, Sparkles, PiggyBank, Landmark, Trash2, AlertCircle,
+  Plus, CreditCard as CreditCardIcon, Wallet, X
 } from 'lucide-react';
-import { Transaction, BankAccount } from '../types';
+import { Transaction, BankAccount, CreditCard } from '../types';
 
 interface SettingsViewProps {
   transactions: Transaction[];
   accounts?: BankAccount[];
   onUpdateAccounts?: (accounts: BankAccount[]) => void;
+  cards?: CreditCard[];
+  onUpdateCards?: (cards: CreditCard[]) => void;
   onResetAllData?: () => void;
+  onLoadDemoData?: () => void;
 }
 
-export default function SettingsView({ transactions, accounts = [], onUpdateAccounts, onResetAllData }: SettingsViewProps) {
+export default function SettingsView({ 
+  transactions, 
+  accounts = [], 
+  onUpdateAccounts, 
+  cards = [], 
+  onUpdateCards, 
+  onResetAllData,
+  onLoadDemoData
+}: SettingsViewProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [useFingerprint, setUseFingerprint] = useState(true);
@@ -21,6 +33,20 @@ export default function SettingsView({ transactions, accounts = [], onUpdateAcco
   const [cloudBackup, setCloudBackup] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+
+  // Form states for adding custom Bank Accounts
+  const [newAccName, setNewAccName] = useState('');
+  const [newAccBank, setNewAccBank] = useState('');
+  const [newAccBalance, setNewAccBalance] = useState('');
+  const [newAccNumber, setNewAccNumber] = useState('');
+  const [newAccIcon, setNewAccIcon] = useState('Landmark');
+
+  // Form states for adding custom Credit Cards
+  const [newCardName, setNewCardName] = useState('');
+  const [newCardLimit, setNewCardLimit] = useState('');
+  const [newCardSpent, setNewCardSpent] = useState('');
+  const [newCardColor, setNewCardColor] = useState('bg-indigo-600');
+  const [newCardDigits, setNewCardDigits] = useState('');
 
   // Work settings editor states
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
@@ -154,7 +180,87 @@ export default function SettingsView({ transactions, accounts = [], onUpdateAcco
     if (onResetAllData) {
       onResetAllData();
       setIsResetConfirmOpen(false);
-      setMessage('Todas as informações foram resetadas para os dados padrão iniciais com sucesso!');
+      setMessage('Todas as informações foram apagadas e a base de dados foi zerada com sucesso!');
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
+  const handleAddAccount = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onUpdateAccounts) return;
+    if (!newAccName || !newAccBank) {
+      alert('Por favor, preencha o nome da conta e o nome do banco!');
+      return;
+    }
+    const newAcc: BankAccount = {
+      id: `acc-${Date.now()}`,
+      name: newAccName,
+      bankName: newAccBank,
+      balance: parseFloat(newAccBalance) || 0,
+      accountNumber: newAccNumber || undefined,
+      icon: newAccIcon,
+      isWorkAccount: false,
+      employeeReservePercent: 0,
+      employeeReserveBalance: 0,
+      personalTransferPercent: 0
+    };
+    onUpdateAccounts([...accounts, newAcc]);
+    setNewAccName('');
+    setNewAccBank('');
+    setNewAccBalance('');
+    setNewAccNumber('');
+    setMessage(`Conta bancária "${newAcc.name}" criada com sucesso!`);
+    setTimeout(() => setMessage(null), 4000);
+  };
+
+  const handleDeleteAccount = (id: string) => {
+    if (!onUpdateAccounts) return;
+    if (confirm('Tem certeza de que deseja deletar esta conta bancária?')) {
+      const updated = accounts.filter(a => a.id !== id);
+      onUpdateAccounts(updated);
+      setMessage('Conta bancária removida com sucesso!');
+      setTimeout(() => setMessage(null), 4000);
+    }
+  };
+
+  const handleAddCard = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onUpdateCards) return;
+    if (!newCardName || !newCardLimit) {
+      alert('Por favor, preencha o nome do cartão e o limite!');
+      return;
+    }
+    const newCard: CreditCard = {
+      id: `card-${Date.now()}`,
+      name: newCardName,
+      limit: parseFloat(newCardLimit) || 0,
+      spent: parseFloat(newCardSpent) || 0,
+      color: newCardColor,
+      lastDigits: newCardDigits || '4321'
+    };
+    onUpdateCards([...cards, newCard]);
+    setNewCardName('');
+    setNewCardLimit('');
+    setNewCardSpent('');
+    setNewCardDigits('');
+    setMessage(`Cartão de crédito "${newCard.name}" adicionado com sucesso!`);
+    setTimeout(() => setMessage(null), 4000);
+  };
+
+  const handleDeleteCard = (id: string) => {
+    if (!onUpdateCards) return;
+    if (confirm('Tem certeza de que deseja deletar este cartão de crédito?')) {
+      const updated = cards.filter(c => c.id !== id);
+      onUpdateCards(updated);
+      setMessage('Cartão de crédito removido com sucesso!');
+      setTimeout(() => setMessage(null), 4000);
+    }
+  };
+
+  const handleLoadDemo = () => {
+    if (onLoadDemoData) {
+      onLoadDemoData();
+      setMessage('Dados de demonstração carregados com sucesso! Você pode explorar todos os recursos do Lumina.');
       setTimeout(() => setMessage(null), 5000);
     }
   };
@@ -185,6 +291,248 @@ export default function SettingsView({ transactions, accounts = [], onUpdateAcco
           <span>{message}</span>
         </motion.div>
       )}
+
+      {/* SEÇÃO: GERENCIAR CONTAS E CARTÕES DE CRÉDITO */}
+      <section className="bg-white dark:bg-[#121824] p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-8">
+        <div className="flex items-center gap-3 border-b border-gray-50 dark:border-gray-850 pb-4">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-[#6ffbbe]">
+            <Wallet className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <span>Gerenciar Contas & Cartões</span>
+            </h3>
+            <p className="text-[11px] text-gray-400">Configure suas contas bancárias e cartões de crédito para iniciar seus lançamentos do zero</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          {/* Coluna 1: Contas Bancárias */}
+          <div className="space-y-6">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between">
+              <span>Minhas Contas Bancárias</span>
+              <span className="text-[10px] bg-gray-100 dark:bg-gray-850 text-gray-500 px-2 py-0.5 rounded font-mono font-semibold">{accounts.length} ativa(s)</span>
+            </h4>
+
+            {/* List of current accounts with quick delete */}
+            {accounts.length === 0 ? (
+              <div className="p-4 border border-dashed border-gray-250 dark:border-gray-850 rounded-xl text-center text-gray-400 text-xs bg-gray-50/30 dark:bg-gray-900/10">
+                Nenhuma conta cadastrada. Cadastre uma conta abaixo para começar!
+              </div>
+            ) : (
+              <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                {accounts.map(acc => (
+                  <div key={acc.id} className="p-3 bg-gray-50 dark:bg-gray-900/55 rounded-xl border border-gray-100 dark:border-gray-850 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-[#6ffbbe] flex items-center justify-center shrink-0">
+                        <Landmark className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-gray-850 dark:text-white block leading-tight">{acc.name}</span>
+                        <span className="text-[10px] text-gray-400 font-sans tracking-wide uppercase mt-0.5 block">{acc.bankName} {acc.accountNumber ? `(nº ${acc.accountNumber})` : ''}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400">R$ {acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <button 
+                        type="button"
+                        onClick={() => handleDeleteAccount(acc.id)}
+                        className="p-1 text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
+                        title="Remover Conta"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Form to add a new account */}
+            <form onSubmit={handleAddAccount} className="p-4 bg-gray-50/50 dark:bg-gray-900/20 border border-gray-100 dark:border-gray-800/80 rounded-2xl space-y-4">
+              <span className="text-[11px] font-bold text-indigo-600 dark:text-[#6ffbbe] uppercase tracking-wider block">Adicionar Nova Conta</span>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="text-[10px] font-bold text-gray-400 mb-1 block">Nome de Exibição</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Conta Corrente Itaú"
+                    value={newAccName}
+                    onChange={(e) => setNewAccName(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-gray-250 dark:border-gray-850 bg-white dark:bg-[#0e1422] text-xs font-semibold text-gray-700 dark:text-gray-350 focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 mb-1 block">Nome do Banco</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Itaú"
+                    value={newAccBank}
+                    onChange={(e) => setNewAccBank(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-gray-250 dark:border-gray-850 bg-white dark:bg-[#0e1422] text-xs font-semibold text-gray-700 dark:text-gray-350 focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 mb-1 block">Saldo Inicial (R$)</label>
+                  <input 
+                    type="number" 
+                    placeholder="Ex: 5000"
+                    step="any"
+                    value={newAccBalance}
+                    onChange={(e) => setNewAccBalance(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-gray-250 dark:border-gray-850 bg-white dark:bg-[#0e1422] text-xs font-semibold text-gray-700 dark:text-gray-350 focus:outline-none"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="text-[10px] font-bold text-gray-400 mb-1 block">Número da Conta (Opcional)</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: 12345-6"
+                    value={newAccNumber}
+                    onChange={(e) => setNewAccNumber(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-gray-250 dark:border-gray-850 bg-white dark:bg-[#0e1422] text-xs font-semibold text-gray-700 dark:text-gray-350 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <button 
+                type="submit"
+                className="w-full h-9 bg-black dark:bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 hover:opacity-90 transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Salvar Conta</span>
+              </button>
+            </form>
+          </div>
+
+          {/* Coluna 2: Cartões de Crédito */}
+          <div className="space-y-6">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between">
+              <span>Meus Cartões de Crédito</span>
+              <span className="text-[10px] bg-gray-100 dark:bg-gray-850 text-gray-500 px-2 py-0.5 rounded font-mono font-semibold">{cards.length} ativo(s)</span>
+            </h4>
+
+            {/* List of credit cards */}
+            {cards.length === 0 ? (
+              <div className="p-4 border border-dashed border-gray-250 dark:border-gray-850 rounded-xl text-center text-gray-400 text-xs bg-gray-50/30 dark:bg-gray-900/10">
+                Nenhum cartão de crédito cadastrado. Cadastre um cartão abaixo!
+              </div>
+            ) : (
+              <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                {cards.map(card => (
+                  <div key={card.id} className="p-3 bg-gray-50 dark:bg-gray-900/55 rounded-xl border border-gray-100 dark:border-gray-850 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full ${card.color || 'bg-indigo-600'} text-white flex items-center justify-center shrink-0`}>
+                        <CreditCardIcon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-gray-850 dark:text-white block leading-tight">{card.name}</span>
+                        <span className="text-[10px] text-gray-400 font-mono tracking-wide mt-0.5 block">Final {card.lastDigits} • Limite: R$ {card.limit.toLocaleString('pt-BR')}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold font-mono text-rose-500">R$ {card.spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <button 
+                        type="button"
+                        onClick={() => handleDeleteCard(card.id)}
+                        className="p-1 text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
+                        title="Remover Cartão"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Form to add new credit card */}
+            <form onSubmit={handleAddCard} className="p-4 bg-gray-50/50 dark:bg-gray-900/20 border border-gray-100 dark:border-gray-800/80 rounded-2xl space-y-4">
+              <span className="text-[11px] font-bold text-indigo-600 dark:text-[#6ffbbe] uppercase tracking-wider block">Adicionar Cartão de Crédito</span>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="text-[10px] font-bold text-gray-400 mb-1 block">Nome do Cartão</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Nubank Mastercard"
+                    value={newCardName}
+                    onChange={(e) => setNewCardName(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-gray-250 dark:border-gray-850 bg-white dark:bg-[#0e1422] text-xs font-semibold text-gray-700 dark:text-gray-350 focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 mb-1 block">Limite Total (R$)</label>
+                  <input 
+                    type="number" 
+                    placeholder="Ex: 5000"
+                    value={newCardLimit}
+                    onChange={(e) => setNewCardLimit(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-gray-250 dark:border-gray-850 bg-white dark:bg-[#0e1422] text-xs font-semibold text-gray-700 dark:text-gray-350 focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 mb-1 block">Fatura Atual (R$)</label>
+                  <input 
+                    type="number" 
+                    placeholder="Ex: 0"
+                    value={newCardSpent}
+                    onChange={(e) => setNewCardSpent(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-gray-250 dark:border-gray-850 bg-white dark:bg-[#0e1422] text-xs font-semibold text-gray-700 dark:text-gray-350 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 mb-1 block">Últimos 4 Dígitos</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: 4321"
+                    maxLength={4}
+                    value={newCardDigits}
+                    onChange={(e) => setNewCardDigits(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-gray-250 dark:border-gray-850 bg-white dark:bg-[#0e1422] text-xs font-semibold text-gray-700 dark:text-gray-350 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 mb-1 block">Cor do Cartão</label>
+                  <select
+                    value={newCardColor}
+                    onChange={(e) => setNewCardColor(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-gray-250 dark:border-gray-850 bg-white dark:bg-[#0e1422] text-xs font-semibold text-gray-700 dark:text-gray-350 focus:outline-none cursor-pointer"
+                  >
+                    <option value="bg-indigo-600">Indigo (Roxo)</option>
+                    <option value="bg-emerald-600">Smarag (Verde)</option>
+                    <option value="bg-pink-600">Pink (Rosa)</option>
+                    <option value="bg-amber-600">Orange (Laranja)</option>
+                    <option value="bg-slate-800">Slate (Grafite)</option>
+                  </select>
+                </div>
+              </div>
+
+              <button 
+                type="submit"
+                className="w-full h-9 bg-black dark:bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 hover:opacity-90 transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Salvar Cartão</span>
+              </button>
+            </form>
+          </div>
+
+        </div>
+      </section>
 
       {/* NEW: Smart Earnings Router (User request: Work accounts, employee reserves, and self transfers) */}
       <section className="bg-white dark:bg-[#121824] p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-6">
@@ -461,11 +809,28 @@ export default function SettingsView({ transactions, accounts = [], onUpdateAcco
               </button>
             </div>
 
+            {/* Carregar Dados de Demonstração (Demo Data) */}
+            {onLoadDemoData && (
+              <div className="p-4 rounded-xl bg-indigo-50/35 dark:bg-indigo-950/10 border border-indigo-100/20 dark:border-indigo-900/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-xs font-bold text-indigo-950 dark:text-indigo-300">Carregar Dados de Demonstração</h4>
+                  <p className="text-[10px] text-gray-400 mt-1 leading-relaxed max-w-[240px]">Preencha o aplicativo temporariamente com transações e contas de exemplo para testar recursos, gráficos e relatórios.</p>
+                </div>
+                <button 
+                  onClick={handleLoadDemo}
+                  className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Carregar Demo</span>
+                </button>
+              </div>
+            )}
+
             {/* Reset All Information action */}
             <div className="p-4 rounded-xl bg-red-50/40 dark:bg-red-950/10 border border-red-100/35 dark:border-red-900/25 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h4 className="text-xs font-bold text-red-800 dark:text-red-300">Resetar Todas as Informações</h4>
-                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed max-w-[240px]">Apaga todas as transações, limpa as contas PJ e redefine o aplicativo para os dados padrão iniciais.</p>
+                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed max-w-[240px]">Apaga todas as transações, limpa as contas bancárias, cartões de crédito e zera o aplicativo completamente.</p>
               </div>
               <button 
                 onClick={() => setIsResetConfirmOpen(true)}
