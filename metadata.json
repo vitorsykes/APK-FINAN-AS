@@ -1,0 +1,6 @@
+{
+  "name": "Lumina Finance",
+  "description": "Aplicativo completo de gestão financeira pessoal com captura e interpretação inteligente de notificações bancárias via IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
