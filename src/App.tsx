@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { auth, onAuthStateChanged, signOut, fetchUserData, saveUserData } from './firebase';
 import { 
   Sparkles, Wallet, TrendingUp, Landmark, ShieldCheck, Sun, Moon, 
   Settings, Award, Target, MessageSquareCode, BellRing, LogOut, ChevronRight
@@ -38,6 +39,10 @@ export default function App() {
   const [budgets, setBudgets] = useState<CategoryBudget[]>(initialBudgets);
   const [rules, setRules] = useState<AutoRule[]>(initialRules);
 
+  // Firebase auth & data sync states
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+
   // App initialization & theme handler
   useEffect(() => {
     if (isDarkMode) {
@@ -46,6 +51,90 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  // Monitor Authentication State & load cloud data
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setCurrentUser(user);
+        setIsLoadingData(true);
+        try {
+          const cloudData = await fetchUserData(user.uid);
+          if (cloudData) {
+            if (cloudData.transactions) setTransactions(cloudData.transactions);
+            if (cloudData.accounts) setAccounts(cloudData.accounts);
+            if (cloudData.cards) setCards(cloudData.cards);
+            if (cloudData.goals) setGoals(cloudData.goals);
+            if (cloudData.budgets) setBudgets(cloudData.budgets);
+            if (cloudData.rules) setRules(cloudData.rules);
+          } else {
+            // New user, seed current states to Firestore
+            await saveUserData(user.uid, {
+              accounts: initialAccounts,
+              transactions: initialTransactions,
+              cards: initialCards,
+              goals: initialGoals,
+              budgets: initialBudgets,
+              rules: initialRules
+            });
+          }
+        } catch (err) {
+          console.error('Erro ao inicializar dados com o Firebase:', err);
+        } finally {
+          setIsLoadingData(false);
+          setScreen('app');
+        }
+      } else {
+        setCurrentUser(null);
+        if (screen === 'app') {
+          setScreen('login');
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [screen]);
+
+  // Save changes to Firestore (Debounced to optimize DB writes)
+  useEffect(() => {
+    if (currentUser && !isLoadingData) {
+      const timer = setTimeout(() => {
+        saveUserData(currentUser.uid, {
+          accounts,
+          transactions,
+          cards,
+          goals,
+          budgets,
+          rules
+        });
+      }, 1000); // 1-second debounce
+
+      return () => clearTimeout(timer);
+    }
+  }, [accounts, transactions, cards, goals, budgets, rules, currentUser, isLoadingData]);
+
+  // Reset all information helper
+  const handleResetAllData = async () => {
+    // Reset to initial seed state
+    setTransactions(initialTransactions);
+    setAccounts(initialAccounts);
+    setCards(initialCards);
+    setGoals(initialGoals);
+    setBudgets(initialBudgets);
+    setRules(initialRules);
+
+    // If user logged in, immediately update Firestore to overwrite old data
+    if (currentUser) {
+      await saveUserData(currentUser.uid, {
+        accounts: initialAccounts,
+        transactions: initialTransactions,
+        cards: initialCards,
+        goals: initialGoals,
+        budgets: initialBudgets,
+        rules: initialRules
+      });
+    }
+  };
 
   // Handle addition of simulated captured notification
   const handleAddNotificationTransaction = (parsed: ParsedNotification, originalText: string) => {
@@ -321,7 +410,15 @@ export default function App() {
   }
 
   if (screen === 'login') {
-    return <Login onSuccess={() => setScreen('app')} />;
+    return (
+      <Login 
+        onSuccess={() => setScreen('app')} 
+        onLocalLogin={() => {
+          setCurrentUser({ email: 'convidado@lumina.com', uid: 'local-guest', isLocal: true });
+          setScreen('app');
+        }} 
+      />
+    );
   }
 
   return (
@@ -451,7 +548,10 @@ export default function App() {
 
           {/* Simulated Sign Out */}
           <button 
-            onClick={() => setScreen('login')}
+            onClick={async () => {
+              await signOut(auth);
+              setScreen('login');
+            }}
             className="w-full h-11 px-4 rounded-xl flex items-center gap-3 text-xs font-semibold text-rose-500 hover:bg-rose-50/50 dark:hover:bg-rose-950/20 cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
@@ -470,7 +570,9 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-xs font-semibold font-mono">Roberto da Silva</span>
+            <span className="text-xs font-semibold font-mono text-gray-700 dark:text-gray-300">
+              {currentUser?.uid === 'local-guest' ? 'Convidado (Modo Local)' : (currentUser?.email || 'Roberto da Silva')}
+            </span>
             <img 
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHEkY8If3N-2_-GozMiq441gFwbdsjGVL7MLeCSrXhmt9iJ6_8ZlHczD2jlZFMRksMRguU18-olZgAKa-IBiBEpyBd3d-taLhV18KwLWKSUbLek5Fb1nkybioGdwP1dYZrTfog6ijfzdNlaKmgn-bdtVsEA7zT1P0GPmMgPK_q0skZpEV_JpKGzuk6CR6Be2a3Y-6DXLQGUBwwZs3FagdjTeRQXAftjeyJCADpW-buwwiT1e-xM3bZww" 
               alt="Avatar Profile" 
@@ -532,6 +634,7 @@ export default function App() {
                 transactions={transactions} 
                 accounts={accounts}
                 onUpdateAccounts={setAccounts}
+                onResetAllData={handleResetAllData}
               />
             )}
           </div>

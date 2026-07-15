@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   Download, CloudLightning, ShieldCheck, Fingerprint, Lock, RefreshCw, HardDrive, Check, Info,
-  Briefcase, Users, ArrowRightLeft, Percent, DollarSign, Sparkles, PiggyBank, Landmark
+  Briefcase, Users, ArrowRightLeft, Percent, DollarSign, Sparkles, PiggyBank, Landmark, Trash2, AlertCircle
 } from 'lucide-react';
 import { Transaction, BankAccount } from '../types';
 
@@ -10,15 +10,17 @@ interface SettingsViewProps {
   transactions: Transaction[];
   accounts?: BankAccount[];
   onUpdateAccounts?: (accounts: BankAccount[]) => void;
+  onResetAllData?: () => void;
 }
 
-export default function SettingsView({ transactions, accounts = [], onUpdateAccounts }: SettingsViewProps) {
+export default function SettingsView({ transactions, accounts = [], onUpdateAccounts, onResetAllData }: SettingsViewProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [useFingerprint, setUseFingerprint] = useState(true);
   const [usePin, setUsePin] = useState(false);
   const [cloudBackup, setCloudBackup] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
   // Work settings editor states
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
@@ -146,6 +148,15 @@ export default function SettingsView({ transactions, accounts = [], onUpdateAcco
       setIsSyncing(false);
       setMessage('Backup seguro concluído! Todos os dados foram criptografados e salvos localmente.');
     }, 2000);
+  };
+
+  const handleExecuteResetAll = () => {
+    if (onResetAllData) {
+      onResetAllData();
+      setIsResetConfirmOpen(false);
+      setMessage('Todas as informações foram resetadas para os dados padrão iniciais com sucesso!');
+      setTimeout(() => setMessage(null), 5000);
+    }
   };
 
   // Helpers for live simulation calculations
@@ -449,6 +460,21 @@ export default function SettingsView({ transactions, accounts = [], onUpdateAcco
                 )}
               </button>
             </div>
+
+            {/* Reset All Information action */}
+            <div className="p-4 rounded-xl bg-red-50/40 dark:bg-red-950/10 border border-red-100/35 dark:border-red-900/25 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-xs font-bold text-red-800 dark:text-red-300">Resetar Todas as Informações</h4>
+                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed max-w-[240px]">Apaga todas as transações, limpa as contas PJ e redefine o aplicativo para os dados padrão iniciais.</p>
+              </div>
+              <button 
+                onClick={() => setIsResetConfirmOpen(true)}
+                className="h-9 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Resetar Dados</span>
+              </button>
+            </div>
           </div>
         </section>
 
@@ -570,6 +596,43 @@ export default function SettingsView({ transactions, accounts = [], onUpdateAcco
                 className="flex-1 h-9 bg-black dark:bg-indigo-600 hover:opacity-90 text-white rounded-xl text-xs font-bold cursor-pointer"
               >
                 Efetuar Lançamento
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Reset Confirmation Modal */}
+      {isResetConfirmOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-[#121824] border border-red-200 dark:border-red-950 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl"
+          >
+            <h4 className="text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+              <span>Resetar Todas as Informações?</span>
+            </h4>
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+              Você tem certeza de que deseja resetar o aplicativo? Esta ação irá <strong>apagar permanentemente</strong> todos os lançamentos personalizados, metas, orçamentos e regras criadas, restaurando as contas aos saldos padrão iniciais.
+            </p>
+            <div className="bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 p-3 rounded-lg text-[10px] font-semibold border border-red-100/40 dark:border-red-900/30">
+              Atenção: Essa operação é irreversível e se estenderá aos dados da sua conta na nuvem.
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button 
+                onClick={() => setIsResetConfirmOpen(false)}
+                className="flex-1 h-9 bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleExecuteResetAll}
+                className="flex-1 h-9 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Sim, Resetar Tudo
               </button>
             </div>
           </motion.div>
